@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: lkqaz923
+      DB_NAME: anki
+    volumes:
+      - ./:/app  # ✅ Esto monta tu carpeta local en /app dentro del contenedor
+
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: lkqaz923
+      MARIADB_DATABASE: anki
+    ports:
+      - "3360:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
