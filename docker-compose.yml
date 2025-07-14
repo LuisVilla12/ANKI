@@ -1,30 +1,39 @@
 services:
-  api:
-    build: .
+  react:
+    build:
+      context: .
+      dockerfile: servicios/frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    working_dir: /app
+    command: npm run dev
+    stdin_open: true
+    tty: true
+    
+  fastapi:
+    build:
+      context: .
+      dockerfile: servicios/backend/Dockerfile
     ports:
       - "8000:8000"
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
-      - db
+      - database
     environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: lkqaz923
-      DB_NAME: anki
-    volumes:
-      - ./:/app  # ✅ Esto monta tu carpeta local en /app dentro del contenedor
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
 
-  db:
+  database:
     image: mariadb:10.11
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: lkqaz923
-      MARIADB_DATABASE: anki
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
     ports:
       - "3360:3306"
     volumes:
       - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/anki.sql
 
 volumes:
   db_data:

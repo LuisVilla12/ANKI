@@ -8,7 +8,7 @@ from typing import List, Optional
 
 # ✅ Configuración de conexión a base de datos en Docker
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'db'),  # Cambiado de 127.0.0.1 a 'db' (nombre del servicio en docker-compose)
+    'host': os.getenv('DB_HOST', 'database'),  # Cambiado de 127.0.0.1 a 'db' (nombre del servicio en docker-compose)
     'user': os.getenv('DB_USER', 'root'),
     'password': os.getenv('DB_PASSWORD', 'lkqaz923'),
     'database': os.getenv('DB_NAME', 'anki'),
@@ -26,37 +26,12 @@ def wait_for_db(max_retries=10, delay=2):
             time.sleep(delay)
     raise RuntimeError("No se pudo conectar a la base de datos después de varios intentos.")
 
-# ✅ Crear tablas si no existen
-def create_tables():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS categories (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS words (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        english VARCHAR(255) NOT NULL,
-        spanish VARCHAR(255) NOT NULL,
-        category_id INT,
-        progress VARCHAR(20) DEFAULT 'malo',
-        FOREIGN KEY (category_id) REFERENCES categories(id)
-    )
-    """)
-
-    conn.commit()
-    cursor.close()
-    conn.close()
 
 # ✅ Crear la instancia FastAPI y las tablas
 app = FastAPI()
 wait_for_db()
-create_tables()
+
 
 # ✅ Configuración de CORS
 app.add_middleware(
@@ -169,3 +144,22 @@ def update_progress(word_id: int, progress: str):
         "category_id": row[2],
         "progress": progress,
     }
+
+@app.delete("/words/{word_id}", response_model=dict)
+def delete_word(word_id: int):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM words WHERE id = %s", (word_id,))
+    word = cursor.fetchone()
+
+    if not word:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Palabra no encontrada")
+
+    cursor.execute("DELETE FROM words WHERE id = %s", (word_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "Palabra eliminada exitosamente"}
