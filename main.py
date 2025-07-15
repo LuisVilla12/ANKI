@@ -1,3 +1,4 @@
+from datetime import date
 import os
 import time
 import mysql.connector
@@ -32,6 +33,11 @@ def wait_for_db(max_retries=10, delay=2):
 app = FastAPI()
 wait_for_db()
 
+origins = [
+    "http://localhost:5173",
+    "http://localhost",  # si usas sólo localhost
+    # Puedes agregar más dominios si quieres permitir
+]
 
 # ✅ Configuración de CORS
 app.add_middleware(
@@ -55,6 +61,14 @@ class Category(BaseModel):
     id: int
     name: str
 
+class CategoryIn(BaseModel):
+    name: str
+
+class CategoryOut(CategoryIn):
+    id: int
+
+
+
 # ✅ Endpoint de prueba
 @app.get("/ping")
 def ping():
@@ -71,11 +85,27 @@ def ping():
 def get_categories():
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name FROM categories ORDER BY name")
+    cursor.execute("SELECT id, name FROM categories ORDER BY id")
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
     return [{"id": r[0], "name": r[1]} for r in rows]
+
+
+@app.post("/categories", response_model=CategoryOut)
+def create_category(category: CategoryIn):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO categories (name) VALUES (%s)",
+        (category.name,)
+    )
+    conn.commit()
+    category_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+    return CategoryOut(id=category_id, name=category.name)
+
 
 # ✅ Obtener todas las palabras
 @app.get("/words", response_model=List[WordOut])

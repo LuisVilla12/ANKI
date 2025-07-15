@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaBookOpen, FaPlus, FaGamepad, FaTrophy, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { FaBookOpen, FaPlus, FaGamepad, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import EditModal from './EditModal'; // Modal de edición separado
 
 const API_URL = 'http://localhost:8000';
 
@@ -17,20 +18,20 @@ const categories = [
 export default function FlashcardApp() {
   const [view, setView] = useState('home');
   const [flashcards, setFlashcards] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [filteredFlashcards, setFilteredFlashcards] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
-  const [score, setScore] = useState({ bueno: 0, regular: 0, malo: 0 });
   const [showSummary, setShowSummary] = useState(false);
-  // Editar
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editCard, setEditCard] = useState(null); // objeto con la tarjeta que se está editando
-  const [editingId, setEditingId] = useState(null);
-  const [editEnglish, setEditEnglish] = useState('');
-  const [editSpanish, setEditSpanish] = useState('');
-  const [editCategory, setEditCategory] = useState('');
+  const [score, setScore] = useState({ bueno: 0, regular: 0, malo: 0 });
+  const [diasJugados, setDiasJugados] = useState(1);
 
+  // Estados para edición modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editCard, setEditCard] = useState(null);
+
+  // Carga inicial de tarjetas
   useEffect(() => {
     fetch(`${API_URL}/words`)
       .then((res) => res.json())
@@ -41,6 +42,17 @@ export default function FlashcardApp() {
       .catch((err) => console.error('Error al obtener tarjetas:', err));
   }, []);
 
+  // Carga inicial de las categorías
+  useEffect(() => {
+    fetch(`${API_URL}/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        setCategories(data);
+      })
+      .catch((err) => console.error('Error al obtener las categorias:', err));
+  }, []);
+  
+  // Filtra tarjetas según categoría seleccionada
   useEffect(() => {
     if (selectedCategory === 0) {
       setFilteredFlashcards(flashcards);
@@ -49,6 +61,7 @@ export default function FlashcardApp() {
     }
   }, [selectedCategory, flashcards]);
 
+  // Añadir tarjeta nueva
   const addCard = async (english, spanish, category_id) => {
     try {
       const response = await fetch(`${API_URL}/words`, {
@@ -58,13 +71,28 @@ export default function FlashcardApp() {
       });
       if (!response.ok) throw new Error('Error al agregar tarjeta');
       const newCard = await response.json();
-      setFlashcards((prev) => [...prev, newCard]);
+      setFlashcards(prev => [...prev, newCard]);
+      setView('home');
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  // Añadir categoria nueva
+  const addCategory = async (nameCategory) => {
+    try {
+      const response = await fetch(`${API_URL}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameCategory  }),
+      });
+      if (!response.ok) throw new Error('Error al agregar categoria');
       setView('home');
     } catch (error) {
       console.error(error);
     }
   };
 
+  // Actualizar progreso de la tarjeta en el juego
   const updateProgress = (level) => {
     const updated = [...flashcards];
     updated[currentIndex].progress = level;
@@ -72,13 +100,14 @@ export default function FlashcardApp() {
     setScore({ ...score, [level]: score[level] + 1 });
     setShowTranslation(false);
 
-    if (currentIndex + 1 >= flashcards.length) {
+    if (currentIndex + 1 >= filteredFlashcards.length) {
       setShowSummary(true);
     } else {
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex(prev => prev + 1);
     }
   };
 
+  // Reiniciar juego
   const restartGame = () => {
     setCurrentIndex(0);
     setShowTranslation(false);
@@ -87,82 +116,55 @@ export default function FlashcardApp() {
     setView('home');
   };
 
-  // const startEdit = (card) => {
-  //   setEditingId(card.id);
-  //   setEditEnglish(card.english);
-  //   setEditSpanish(card.spanish);
-  //   setEditCategory(card.category_id);
-  // };
-
+  // Abrir modal para editar tarjeta
   const openEditModal = (card) => {
-  setEditCard(card);
-  setEditEnglish(card.english);
-  setEditSpanish(card.spanish);
-  setEditCategory(card.category);
-  setIsModalOpen(true);
-    setEditingId(card.id); // <== ESTA ES LA LÍNEA QUE FALTABA
-};
-
- const handleSaveEdit = () => {
-    if (editCard) {
-      saveEdit({
-        ...editCard,
-        english: editEnglish,
-        spanish: editSpanish,
-        category: editCategory,
-      });
-    }
-    setIsModalOpen(false);
+    setEditCard(card);
+    setIsModalOpen(true);
   };
 
-  const saveEdit = async () => {
-    const updatedCard = {
-      english: editEnglish,
-      spanish: editSpanish,
-      category_id: Number(editCategory),
-    };
-
+  // Guardar edición de tarjeta
+  const handleSaveEdit = async (updatedCard) => {
     try {
-      const response = await fetch(`${API_URL}/words/${editingId}`, {
+      const response = await fetch(`${API_URL}/words/${updatedCard.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedCard),
+        body: JSON.stringify({
+          english: updatedCard.english,
+          spanish: updatedCard.spanish,
+          category_id: Number(updatedCard.category_id),
+        }),
       });
-
       if (!response.ok) throw new Error('Error al actualizar la tarjeta');
       const updatedFromServer = await response.json();
 
-      const updated = flashcards.map((card) =>
-        card.id === editingId ? updatedFromServer : card
+      const updated = flashcards.map(card =>
+        card.id === updatedFromServer.id ? updatedFromServer : card
       );
-
       setFlashcards(updated);
-      setEditingId(null);
+      setIsModalOpen(false);
+      setEditCard(null);
     } catch (error) {
       console.error('Error al guardar edición:', error);
     }
   };
-const deleteCard = async (id) => {
-  try {
-    const response = await fetch(`${API_URL}/words/${id}`, {
-      method: 'DELETE',  // Método correcto para eliminar
-      headers: { 'Content-Type': 'application/json' },
-    });
 
-    if (!response.ok) throw new Error('Error al eliminar la tarjeta');
+  // Eliminar tarjeta
+  const deleteCard = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/words/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Error al eliminar la tarjeta');
 
-    // Si quieres, puedes leer la respuesta del servidor
-    // const result = await response.json();
+      setFlashcards(prev => prev.filter(card => card.id !== id));
+      setFilteredFlashcards(prev => prev.filter(card => card.id !== id));
+    } catch (error) {
+      console.error('Error al eliminar la tarjeta:', error);
+    }
+  };
 
-    // Actualizar estados solo si la eliminación fue exitosa
-    setFlashcards(prev => prev.filter(card => card.id !== id));
-    setFilteredFlashcards(prev => prev.filter(card => card.id !== id));
-
-  } catch (error) {
-    console.error('Error al eliminar la tarjeta:', error);
-  }
-};
-
+  // Componentes internos:
 
   const Flashcard = ({ word }) => (
     <motion.div
@@ -176,7 +178,9 @@ const deleteCard = async (id) => {
       {showTranslation && <p className="text-xl text-gray-700 font-medium">{word.spanish}</p>}
       <div className="mt-6 space-y-2 flex flex-col items-center">
         {!showTranslation && (
-          <button onClick={() => setShowTranslation(true)} className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full">Ver traducción</button>
+          <button onClick={() => setShowTranslation(true)} className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full">
+            Ver traducción
+          </button>
         )}
         {showTranslation && (
           <>
@@ -203,6 +207,36 @@ const deleteCard = async (id) => {
     </div>
   );
 
+
+    const AddCategoryForm = () => {
+    const [nameCategory, setNameCategory] = useState('');
+
+    return (
+      <div className="p-4 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">Agregar nueva categoria</h2>
+        <input
+          className="border p-2 mb-2 w-full text-black"
+          placeholder="Nombre de la categoría"
+          value={nameCategory}
+          onChange={e => setNameCategory(e.target.value)}
+        />
+        <button
+          disabled={!nameCategory}
+          className="bg-blue-500 text-white px-4 py-2 rounded mr-2 disabled:opacity-50"
+          onClick={() => addCategory(nameCategory)}
+        >
+          Guardar
+        </button>
+        <button
+          className="bg-gray-300 text-black px-4 py-2 rounded"
+          onClick={() => setView('home')}
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  };
+
   const AddCardForm = () => {
     const [english, setEnglish] = useState('');
     const [spanish, setSpanish] = useState('');
@@ -211,16 +245,41 @@ const deleteCard = async (id) => {
     return (
       <div className="p-4 w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">Agregar nueva palabra</h2>
-        <input className="border p-2 mb-2 w-full text-black" placeholder="Inglés" value={english} onChange={(e) => setEnglish(e.target.value)} />
-        <input className="border p-2 mb-2 w-full text-black" placeholder="Español" value={spanish} onChange={(e) => setSpanish(e.target.value)} />
-        <select className="border p-2 mb-4 w-full text-black" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="" className='text-black'>Seleccionar categoría</option>
-          {categories.filter(c => c.id !== 0).map((cat) => (
-            <option className='text-black' key={cat.id} value={cat.id}>{cat.name}</option>
+        <input
+          className="border p-2 mb-2 w-full text-black"
+          placeholder="Inglés"
+          value={english}
+          onChange={e => setEnglish(e.target.value)}
+        />
+        <input
+          className="border p-2 mb-2 w-full text-black"
+          placeholder="Español"
+          value={spanish}
+          onChange={e => setSpanish(e.target.value)}
+        />
+        <select
+          className="border p-2 mb-4 w-full text-black"
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+        >
+          <option value="">Seleccionar categoría</option>
+          {categories.filter(c => c.id !== 0).map(cat => (
+            <option className="text-black" key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
-        <button disabled={!english || !spanish || !category} className="bg-blue-500 text-white px-4 py-2 rounded mr-2 disabled:opacity-50" onClick={() => addCard(english, spanish, category)}>Guardar</button>
-        <button className="bg-gray-300 text-black px-4 py-2 rounded" onClick={() => setView('home')}>Cancelar</button>
+        <button
+          disabled={!english || !spanish || !category}
+          className="bg-blue-500 text-white px-4 py-2 rounded mr-2 disabled:opacity-50"
+          onClick={() => addCard(english, spanish, category)}
+        >
+          Guardar
+        </button>
+        <button
+          className="bg-gray-300 text-black px-4 py-2 rounded"
+          onClick={() => setView('home')}
+        >
+          Cancelar
+        </button>
       </div>
     );
   };
@@ -230,102 +289,56 @@ const deleteCard = async (id) => {
       <h2 className="text-2xl font-bold mb-4">Lista de Palabras</h2>
       <div className="mb-4">
         <label className="mr-2">Filtrar por categoría:</label>
-        <select className="border p-2 text-black" value={selectedCategory} onChange={(e) => setSelectedCategory(Number(e.target.value))}>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
+        <select
+          className="border p-2 text-black"
+          value={selectedCategory}
+          onChange={e => setSelectedCategory(Number(e.target.value))}
+        >
+          {categories.map(cat => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
           ))}
         </select>
       </div>
-      
+
       <ul className="space-y-4">
-        {filteredFlashcards.map((card) => (
+        {filteredFlashcards.map(card => (
           <li
             key={card.id}
             className="bg-white text-black rounded-lg shadow p-4 flex justify-between items-center"
           >
             <div className="flex-1">
-              <p className="font-semibold">
-                {card.english} - {card.spanish}
-              </p>
-              <p className="text-sm text-gray-500">
-                {categories.find((c) => c.id === card.category)?.name || ''}
-              </p>
+              <p className="font-semibold">{card.english} - {card.spanish}</p>
+              <p className="text-sm text-gray-500">{categories.find(c => c.id === card.category_id)?.name || ''}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => openEditModal(card)}
-                className="text-blue-500"
-              >
-                <FaEdit />
-              </button>
-              <button
-                onClick={() => deleteCard(card.id)}
-                className="text-red-500"
-              >
-                <FaTrash />
-              </button>
+              <button onClick={() => openEditModal(card)} className="text-blue-500"><FaEdit /></button>
+              <button onClick={() => deleteCard(card.id)} className="text-red-500"><FaTrash /></button>
             </div>
           </li>
         ))}
       </ul>
 
-      {/* Modal de edición */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg text-black w-96">
-            <h3 className="text-lg font-bold mb-4">Editar Tarjeta</h3>
-            <input
-              value={editEnglish}
-              onChange={(e) => setEditEnglish(e.target.value)}
-              className="border p-2 mb-2 w-full"
-              placeholder="Inglés"
-            />
-            <input
-              value={editSpanish}
-              onChange={(e) => setEditSpanish(e.target.value)}
-              className="border p-2 mb-2 w-full"
-              placeholder="Español"
-            />
-            <select
-              value={editCategory}
-              onChange={(e) => setEditCategory(Number(e.target.value))}
-              className="border p-2 mb-4 w-full"
-            >
-              {categories
-                .filter((c) => c.id !== 0)
-                .map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-            </select>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleSaveEdit}
-                className="bg-green-500 text-white px-4 py-2 rounded"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="bg-gray-300 text-black px-4 py-2 rounded"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="mt-6">
         <button onClick={() => setView('home')} className="text-sm text-white underline">← Volver al menú</button>
       </div>
     </div>
   );
 
+  // Cálculo de precisión
+  const totalRespondidas = score.bueno + score.regular + score.malo;
+  const precision = totalRespondidas > 0 ? Math.round((score.bueno / totalRespondidas) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center justify-center">
       {view === 'home' && (
-        <motion.div className="max-w-3xl w-full space-y-8" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <motion.div
+          className="max-w-3xl w-full space-y-8"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 text-3xl font-bold">
               <span className="bg-yellow-400 text-white p-2 rounded-full"><FaCheckCircle /></span>
@@ -340,25 +353,47 @@ const deleteCard = async (id) => {
               <p className="text-gray-400">Palabras aprendidas</p>
             </div>
             <div className="bg-gray-800 p-4 rounded-xl">
-              <p className="text-2xl font-bold text-yellow-400">15</p>
+              <p className="text-2xl font-bold text-yellow-400">{diasJugados}</p>
               <p className="text-gray-400">Días consecutivos</p>
             </div>
             <div className="bg-gray-800 p-4 rounded-xl">
-              <p className="text-2xl font-bold text-purple-400">{flashcards.length ? Math.round((score.bueno / flashcards.length) * 100) : 0}%</p>
+              <p className="text-2xl font-bold text-purple-400">{precision}%</p>
               <p className="text-gray-400">Precisión</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2" onClick={() => setView('add')}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => setView('addCard')}
+            >
               <FaPlus size={32} />
               <span>Agregar Palabra</span>
             </button>
-            <button className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2" onClick={() => setView('view')}>
+            <button
+              className="bg-pink-500 hover:bg-pink-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => setView('addCategory')}
+            >
+              <FaPlus size={32} />
+              <span>Agregar categoria</span>
+            </button>
+            <button
+              className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => setView('view')}
+            >
               <FaBookOpen size={32} />
               <span>Ver Palabras</span>
             </button>
-            <button className="bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2" onClick={() => setView('play')}>
+            <button
+              className="bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => {
+                setCurrentIndex(0);
+                setScore({ bueno: 0, regular: 0, malo: 0 });
+                setShowTranslation(false);
+                setShowSummary(false);
+                setView('play');
+              }}
+            >
               <FaGamepad size={32} />
               <span>Jugar</span>
             </button>
@@ -366,10 +401,25 @@ const deleteCard = async (id) => {
         </motion.div>
       )}
 
-      {view === 'add' && <AddCardForm />}
+      {view === 'addCard' && <AddCardForm />}
+      {view === 'addCategory' && <AddCategoryForm />}
       {view === 'view' && <ViewCards />}
-      {view === 'play' && !showSummary && filteredFlashcards.length > 0 && <Flashcard word={filteredFlashcards[currentIndex]} />}
-      {view === 'play' && showSummary && <GameSummary />}
+      {view === 'play' && filteredFlashcards.length > 0 && (
+        showSummary ? <GameSummary /> : <Flashcard word={filteredFlashcards[currentIndex]} />
+      )}
+
+      {/* Modal edición */}
+      {isModalOpen && (
+        <EditModal
+          card={editCard}
+          categories={categories}
+          onSave={handleSaveEdit}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditCard(null);
+          }}
+        />
+      )}
     </div>
   );
 }
