@@ -212,3 +212,21 @@ def delete_word(word_id: int):
     conn.close()
 
     return {"message": "Palabra eliminada exitosamente"}
+
+# Eliminar palabra
+@app.delete("/categories/{category_id}", response_model=dict)
+def delete_category(category_id: int):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+    category = cursor.fetchone()
+    if not category:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Categoria no encontrada")
+    cursor.execute("DELETE FROM categories WHERE id = %s", (category_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "Categoria eliminada exitosamente"}

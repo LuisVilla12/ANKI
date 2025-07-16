@@ -36,14 +36,10 @@ CREATE TABLE `words` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `categories` (`id`, `name`) VALUES
-(10, 'a'),
-(9, 'aa'),
 (5, 'Animales'),
 (4, 'Comida'),
 (8, 'Example'),
 (1, 'General'),
-(7, 'Hola'),
-(12, 'Holaaaaa'),
 (3, 'Objetos'),
 (6, 'Otros'),
 (2, 'Verbos');

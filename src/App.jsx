@@ -36,18 +36,8 @@ export default function FlashcardApp() {
       .catch((err) => console.error('Error al obtener tarjetas:', err));
   }, []);
 
-  // // Carga inicial de las categorías
-  // useEffect(() => {
-  //   fetch(`${API_URL}/categories`)
-  //     .then((res) => res.json())
-  //     .then((data) => {
-  //       setCategories(data);
-  //     })
-  //     .catch((err) => console.error('Error al obtener las categorias:', err));
-  // }, []);
-
   // Función reutilizable para cargar categorías
-const fetchCategories = () => {
+  const fetchCategories = () => {
   fetch(`${API_URL}/categories`)
     .then((res) => res.json())
     .then((data) => {
@@ -176,7 +166,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
 
     // Verifica si la respuesta fue exitosa
     if (!response.ok) throw new Error('Error al actualizar la categoría');
-    await fetchCategories(); // ← Aquí actualizas después de guardar
+    await fetchCategories();
     // Cierra modal y limpia el estado de edición
     setIsModalOpenCategory(false);
     setEditCategory(null);
@@ -201,6 +191,22 @@ const handleSaveEditCategory = async (updatedCategory) => {
       console.error('Error al eliminar la tarjeta:', error);
     }
   };
+
+    // Eliminar categoria
+  const deleteCategory = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/categories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Error al eliminar la categoria');
+      await fetchCategories(); // ← Aquí actualizas después de guardar
+      setSelectedCategory(0); // Reinicia la categoría seleccionada
+    } catch (error) {
+      console.error('Error al eliminar la tarjeta:', error);
+    }
+  };
+
 
   // Componentes internos:
 
@@ -336,7 +342,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => openEditModalCategory(cat)} className="text-blue-500"><FaEdit /></button>
-              <button onClick={() => deleteCard(cat.id)} className="text-red-500"><FaTrash /></button>
+              <button onClick={() => deleteCategory(cat.id)} className="text-red-500"><FaTrash /></button>
             </div>
           </li>
         ))}
