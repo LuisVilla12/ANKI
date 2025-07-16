@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-export default function EditModal({ card, categories, onSave, onClose }) {
+export default function EditModalCard({ card, categories, onSave, onClose }) {
     const [english, setEnglish] = useState("");
     const [spanish, setSpanish] = useState("");
     const [category, setCategory] = useState("");

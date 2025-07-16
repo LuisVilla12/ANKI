@@ -91,7 +91,7 @@ def get_categories():
     conn.close()
     return [{"id": r[0], "name": r[1]} for r in rows]
 
-
+# Agregar Categoria
 @app.post("/categories", response_model=CategoryOut)
 def create_category(category: CategoryIn):
     conn = mysql.connector.connect(**DB_CONFIG)
@@ -105,6 +105,25 @@ def create_category(category: CategoryIn):
     cursor.close()
     conn.close()
     return CategoryOut(id=category_id, name=category.name)
+
+@app.put("/categories/{category_id}", response_model=CategoryOut)
+def update_category(category_id: int, category: CategoryIn):
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE categories SET name=%s WHERE id=%s",
+            (category.name, category_id)
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Categoría no encontrada")
+        return CategoryOut(id=category_id, name=category.name)
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # ✅ Obtener todas las palabras

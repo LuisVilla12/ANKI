@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaBookOpen, FaPlus, FaGamepad, FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
-import EditModal from './EditModal'; // Modal de edición separado
+import { FaBookOpen, FaPlus, FaGamepad, FaEdit, FaTrash, FaCheckCircle,FaTags } from 'react-icons/fa';
+import EditModalCard from './EditModalCard'; // Modal de edición separado
+import EditModalCategory from './EditModalCategory'; // Modal de edición separado
 
 const API_URL = 'http://localhost:8000';
-
-const categories = [
-  { id: 0, name: 'Todas' },
-  { id: 1, name: 'General' },
-  { id: 2, name: 'Verbos' },
-  { id: 3, name: 'Objetos' },
-  { id: 4, name: 'Comida' },
-  { id: 5, name: 'Animales' },
-  { id: 6, name: 'Otros' }
-];
 
 export default function FlashcardApp() {
   const [view, setView] = useState('home');
@@ -27,9 +18,12 @@ export default function FlashcardApp() {
   const [score, setScore] = useState({ bueno: 0, regular: 0, malo: 0 });
   const [diasJugados, setDiasJugados] = useState(1);
 
-  // Estados para edición modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Estados para edición modal card
+  const [isModalOpenCard, setIsModalOpenCard] = useState(false);
   const [editCard, setEditCard] = useState(null);
+  // Estados para edición modal category
+  const [isModalOpenCategory, setIsModalOpenCategory] = useState(false);
+  const [editCategory, setEditCategory] = useState(null);
 
   // Carga inicial de tarjetas
   useEffect(() => {
@@ -42,16 +36,29 @@ export default function FlashcardApp() {
       .catch((err) => console.error('Error al obtener tarjetas:', err));
   }, []);
 
-  // Carga inicial de las categorías
-  useEffect(() => {
-    fetch(`${API_URL}/categories`)
-      .then((res) => res.json())
-      .then((data) => {
-        setCategories(data);
-      })
-      .catch((err) => console.error('Error al obtener las categorias:', err));
-  }, []);
-  
+  // // Carga inicial de las categorías
+  // useEffect(() => {
+  //   fetch(`${API_URL}/categories`)
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       setCategories(data);
+  //     })
+  //     .catch((err) => console.error('Error al obtener las categorias:', err));
+  // }, []);
+
+  // Función reutilizable para cargar categorías
+const fetchCategories = () => {
+  fetch(`${API_URL}/categories`)
+    .then((res) => res.json())
+    .then((data) => {
+      setCategories(data);
+    })
+    .catch((err) => console.error('Error al obtener las categorias:', err));
+};
+useEffect(() => {
+  fetchCategories();
+}, []);
+
   // Filtra tarjetas según categoría seleccionada
   useEffect(() => {
     if (selectedCategory === 0) {
@@ -117,13 +124,20 @@ export default function FlashcardApp() {
   };
 
   // Abrir modal para editar tarjeta
-  const openEditModal = (card) => {
+  const openEditModalCard = (card) => {
     setEditCard(card);
-    setIsModalOpen(true);
+    setIsModalOpenCard(true);
+  };
+
+  
+  // Abrir modal para editar categoría
+  const openEditModalCategory = (cat) => {
+    setEditCategory(cat);
+    setIsModalOpenCategory(true);
   };
 
   // Guardar edición de tarjeta
-  const handleSaveEdit = async (updatedCard) => {
+  const handleSaveEditCard = async (updatedCard) => {
     try {
       const response = await fetch(`${API_URL}/words/${updatedCard.id}`, {
         method: 'PUT',
@@ -141,12 +155,36 @@ export default function FlashcardApp() {
         card.id === updatedFromServer.id ? updatedFromServer : card
       );
       setFlashcards(updated);
-      setIsModalOpen(false);
+      setIsModalOpenCard(false);
       setEditCard(null);
     } catch (error) {
       console.error('Error al guardar edición:', error);
     }
   };
+  // Guardar edición de categoría
+const handleSaveEditCategory = async (updatedCategory) => {
+  try {
+    const response = await fetch(`${API_URL}/categories/${updatedCategory.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: updatedCategory.name,
+      }),
+    });
+
+    // Verifica si la respuesta fue exitosa
+    if (!response.ok) throw new Error('Error al actualizar la categoría');
+    await fetchCategories(); // ← Aquí actualizas después de guardar
+    // Cierra modal y limpia el estado de edición
+    setIsModalOpenCategory(false);
+    setEditCategory(null);
+  } catch (error) {
+    console.error('Error al guardar edición:', error);
+  }
+};
+
 
   // Eliminar tarjeta
   const deleteCard = async (id) => {
@@ -283,7 +321,34 @@ export default function FlashcardApp() {
       </div>
     );
   };
+  //Ver categorias
+   const ViewCategories = () => (
+    <div className="p-4 w-full max-w-2xl">
+      <h2 className="text-2xl font-bold mb-4">Lista de categorias</h2>
+      <ul className="space-y-4">
+        {categories.map(cat => (
+          <li
+            key={cat.id}
+            className="bg-white text-black rounded-lg shadow p-4 flex justify-between items-center"
+          >
+            <div className="flex-1">
+              <p className="font-semibold">{cat.name}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => openEditModalCategory(cat)} className="text-blue-500"><FaEdit /></button>
+              <button onClick={() => deleteCard(cat.id)} className="text-red-500"><FaTrash /></button>
+            </div>
+          </li>
+        ))}
+      </ul>
 
+      <div className="mt-6">
+        <button onClick={() => setView('home')} className="text-sm text-white underline">← Volver al menú</button>
+      </div>
+    </div>
+  );
+
+  // Ver cartas
   const ViewCards = () => (
     <div className="p-4 w-full max-w-2xl">
       <h2 className="text-2xl font-bold mb-4">Lista de Palabras</h2>
@@ -313,7 +378,7 @@ export default function FlashcardApp() {
               <p className="text-sm text-gray-500">{categories.find(c => c.id === card.category_id)?.name || ''}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => openEditModal(card)} className="text-blue-500"><FaEdit /></button>
+              <button onClick={() => openEditModalCard(card)} className="text-blue-500"><FaEdit /></button>
               <button onClick={() => deleteCard(card.id)} className="text-red-500"><FaTrash /></button>
             </div>
           </li>
@@ -362,7 +427,7 @@ export default function FlashcardApp() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
               onClick={() => setView('addCard')}
@@ -371,15 +436,8 @@ export default function FlashcardApp() {
               <span>Agregar Palabra</span>
             </button>
             <button
-              className="bg-pink-500 hover:bg-pink-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
-              onClick={() => setView('addCategory')}
-            >
-              <FaPlus size={32} />
-              <span>Agregar categoria</span>
-            </button>
-            <button
               className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
-              onClick={() => setView('view')}
+              onClick={() => setView('view-cards')}
             >
               <FaBookOpen size={32} />
               <span>Ver Palabras</span>
@@ -397,26 +455,55 @@ export default function FlashcardApp() {
               <FaGamepad size={32} />
               <span>Jugar</span>
             </button>
+            <button
+              className="bg-pink-500 hover:bg-pink-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => setView('addCategory')}
+            >
+              <FaPlus size={32} />
+              <span>Agregar categoria</span>
+            </button>
+            <button
+              className="bg-yellow-500 hover:bg-yellow-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+              onClick={() => setView('view-categories')}
+            >
+              <FaTags size={32} />
+              <span>Ver Categorias</span>
+            </button>
+            
           </div>
         </motion.div>
       )}
 
       {view === 'addCard' && <AddCardForm />}
       {view === 'addCategory' && <AddCategoryForm />}
-      {view === 'view' && <ViewCards />}
+      {view === 'view-cards' && <ViewCards />}
+      {view === 'view-categories' && <ViewCategories />}
+      {/* Juego de tarjetas */}
       {view === 'play' && filteredFlashcards.length > 0 && (
         showSummary ? <GameSummary /> : <Flashcard word={filteredFlashcards[currentIndex]} />
       )}
 
-      {/* Modal edición */}
-      {isModalOpen && (
-        <EditModal
+      {/* Modal edición de card */}
+      {isModalOpenCard && (
+        <EditModalCard
           card={editCard}
           categories={categories}
-          onSave={handleSaveEdit}
+          onSave={handleSaveEditCard}
           onClose={() => {
-            setIsModalOpen(false);
+            setIsModalOpenCard(false);
             setEditCard(null);
+          }}
+        />
+      )}
+      
+      {/* Modal edición de category */}
+      {isModalOpenCategory && (
+        <EditModalCategory
+          cat={editCategory}
+          onSave={handleSaveEditCategory}
+          onClose={() => {
+            setIsModalOpenCategory(false);
+            setEditCategory(null);
           }}
         />
       )}
