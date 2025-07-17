@@ -265,6 +265,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
       animate={{ rotateY: 0, opacity: 1 }}
       exit={{ rotateY: -90, opacity: 0 }}
       transition={{ duration: 0.6, type: 'spring' }}
+      style={{ transformStyle: 'preserve-3d' }}
     >
       <h2 className="text-3xl font-bold text-purple-700 mb-6">{word.english}</h2>
       {showTranslation && <p className="text-xl text-gray-700 font-medium">{word.spanish}</p>}
