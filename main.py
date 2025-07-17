@@ -55,7 +55,7 @@ class WordIn(BaseModel):
     
 class WordOut(WordIn):
     id: int
-    progress: str
+    progress: int
 
 class Category(BaseModel):
     id: int
@@ -80,6 +80,35 @@ def ping():
     except mysql.connector.Error as e:
         raise HTTPException(status_code=500, detail=f"Error de conexión a la base de datos: {str(e)}")
 
+@app.get("/racha")
+def get_racha():
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM racha")
+        racha = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return {"racha": racha}
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/racha")
+def add_racha():
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        hoy = date.today().isoformat()
+        cursor.execute("SELECT 1 FROM racha WHERE date = %s", (hoy,))
+        if cursor.fetchone() is None:
+            cursor.execute("INSERT INTO racha (date) VALUES (%s)", (hoy,))
+            conn.commit()
+        cursor.close()
+        conn.close()
+        return {"mensaje": "Fecha registrada con éxito"}  # o "Ya existía"
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 # ✅ Obtener categorías
 @app.get("/categories", response_model=List[Category])
 def get_categories():
@@ -171,19 +200,20 @@ def update_word(word_id: int, word: WordIn):
     conn.close()
     return {**word.dict(), "id": word_id, "progress": progress}
 
-# ✅ Actualizar progreso
+# ✅ Actualizar progreso de la palabra
 @app.put("/words/{word_id}/progress", response_model=WordOut)
-def update_progress(word_id: int, progress: str):
-    if progress not in ["malo", "regular", "bueno"]:
-        raise HTTPException(status_code=400, detail="Valor de progreso inválido")
+def update_progress(word_id: int, points: int):
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
-    cursor.execute("UPDATE words SET progress=%s WHERE id=%s", (progress, word_id))
+    # Aumentar puntos de la tarjeta
+    cursor.execute("UPDATE words SET progress = progress + %s WHERE id = %s", (points, word_id))
     conn.commit()
-    cursor.execute("SELECT english, spanish, category_id FROM words WHERE id=%s", (word_id,))
+
+    cursor.execute("SELECT english, spanish, category_id, progress FROM words WHERE id = %s", (word_id,))
     row = cursor.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Palabra no encontrada")
+    
     cursor.close()
     conn.close()
     return {
@@ -191,7 +221,7 @@ def update_progress(word_id: int, progress: str):
         "english": row[0],
         "spanish": row[1],
         "category_id": row[2],
-        "progress": progress,
+        "progress": row[3],
     }
 
 @app.delete("/words/{word_id}", response_model=dict)

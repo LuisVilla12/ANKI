@@ -18,8 +18,7 @@ CREATE TABLE `categories` (
 DROP TABLE IF EXISTS `racha`;
 CREATE TABLE `racha` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `streak_days` int(11) DEFAULT 0,
-  `last_played_date` date DEFAULT NULL,
+  `date` date NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -29,7 +28,7 @@ CREATE TABLE `words` (
   `english` varchar(255) NOT NULL,
   `spanish` varchar(255) NOT NULL,
   `category_id` int(11) DEFAULT NULL,
-  `progress` varchar(20) DEFAULT 'malo',
+  `progress` int(11) DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `category_id` (`category_id`),
   CONSTRAINT `words_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
@@ -43,14 +42,14 @@ INSERT INTO `categories` (`id`, `name`) VALUES
 (3, 'Objetos'),
 (6, 'Otros'),
 (2, 'Verbos');
-INSERT INTO `racha` (`id`, `streak_days`, `last_played_date`) VALUES
-(1, 0, NULL);
+INSERT INTO `racha` (`id`, `date`) VALUES
+(1, '2025-07-16');
 INSERT INTO `words` (`id`, `english`, `spanish`, `category_id`, `progress`) VALUES
-(1, 'Hello', 'Hola', 1, 'malo'),
-(2, 'Bye', 'Adios', 1, 'malo'),
-(3, 'Exit', 'Salida', 1, 'malo'),
-(4, 'Save', 'Guadar', 2, 'malo'),
-(5, 'Test', 'Prueba', 1, 'malo');
+(1, 'Hello', 'Hola', 1, 1),
+(2, 'Bye', 'Adios', 1, 1),
+(3, 'Exit', 'Salida', 1, 1),
+(4, 'Save', 'Guadar', 2, 1),
+(5, 'Test', 'Prueba', 1, 1);
 
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

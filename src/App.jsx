@@ -16,7 +16,8 @@ export default function FlashcardApp() {
   const [showTranslation, setShowTranslation] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [score, setScore] = useState({ bueno: 0, regular: 0, malo: 0 });
-  const [diasJugados, setDiasJugados] = useState(1);
+  const [precision, setPrecision] = useState(0);
+  const [racha, setRacha] = useState(0);
 
   // Estados para edición modal card
   const [isModalOpenCard, setIsModalOpenCard] = useState(false);
@@ -25,8 +26,8 @@ export default function FlashcardApp() {
   const [isModalOpenCategory, setIsModalOpenCategory] = useState(false);
   const [editCategory, setEditCategory] = useState(null);
 
-  // Carga inicial de tarjetas
   useEffect(() => {
+  // Carga inicial de tarjetas
     fetch(`${API_URL}/words`)
       .then((res) => res.json())
       .then((data) => {
@@ -34,8 +35,23 @@ export default function FlashcardApp() {
         setFilteredFlashcards(data);
       })
       .catch((err) => console.error('Error al obtener tarjetas:', err));
+      //Registar  racha
+    fetch(`${API_URL}/racha`, {
+    method: "POST"
+  })
+    .then((res) => res.json())
+    .then((data) => console.log("Racha:", data.mensaje))
+    .catch((err) => console.error("Error al registrar racha:", err));
   }, []);
-
+ // Cargar racha
+  useEffect(() => {
+    fetch(`${API_URL}/racha`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRacha(data.racha);
+      })
+      .catch((err) => console.error('Error al obtener tarjetas:', err));
+  }, []);
   // Función reutilizable para cargar categorías
   const fetchCategories = () => {
   fetch(`${API_URL}/categories`)
@@ -57,6 +73,14 @@ useEffect(() => {
       setFilteredFlashcards(flashcards.filter(card => card.category_id === selectedCategory));
     }
   }, [selectedCategory, flashcards]);
+
+useEffect(() => {
+  const total = score.bueno + score.regular + score.malo;
+  const nuevaPrecision = total > 0 ? Math.round((score.bueno / total) * 100) : 0;
+  setPrecision(nuevaPrecision);
+  console.log(nuevaPrecision)
+}, [score]);
+
 
   // Añadir tarjeta nueva
   const addCard = async (english, spanish, category_id) => {
@@ -88,27 +112,52 @@ useEffect(() => {
       console.error(error);
     }
   };
+const pointsMap = {
+  5: 'bueno',
+  3: 'regular',
+  1: 'malo',
+};
 
   // Actualizar progreso de la tarjeta en el juego
-  const updateProgress = (level) => {
-    const updated = [...flashcards];
-    updated[currentIndex].progress = level;
-    setFlashcards(updated);
-    setScore({ ...score, [level]: score[level] + 1 });
-    setShowTranslation(false);
+const updateProgress = async (points) => {
+  const updated = [...flashcards];
+  const word = filteredFlashcards[currentIndex];
+  updated[currentIndex].progress += points;
+  setFlashcards(updated);
 
-    if (currentIndex + 1 >= filteredFlashcards.length) {
-      setShowSummary(true);
-    } else {
-      setCurrentIndex(prev => prev + 1);
-    }
+  try {
+    await fetch(`${API_URL}/words/${word.id}/progress?points=${points}`, {
+    method: 'PUT',
+  });
+  } catch (error) {
+    console.error("Error actualizando progreso:", error);
+  }
+
+  setScore((prev) => ({ ...prev, [points]: (prev[points] || 0) + 1 }));
+  setShowTranslation(false);
+
+  if (currentIndex + 1 >= filteredFlashcards.length) {
+    setShowSummary(true);
+  } else {
+    setCurrentIndex(prev => prev + 1);
+  }
+
+  setScore(prev => {
+  const key = pointsMap[points];
+  if (!key) return prev; // si no hay key válida, no actualizar
+
+  return {
+    ...prev,
+    [key]: (prev[key] || 0) + 1,
   };
+});
+};
 
   // Reiniciar juego
   const restartGame = () => {
     setCurrentIndex(0);
     setShowTranslation(false);
-    setScore({ bueno: 0, regular: 0, malo: 0 });
+    // setScore({ bueno: 0, regular: 0, malo: 0 });
     setShowSummary(false);
     setView('home');
   };
@@ -211,6 +260,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
   // Componentes internos:
 
   const Flashcard = ({ word }) => (
+    
     <motion.div
       className="bg-white shadow-2xl rounded-3xl p-8 w-96 text-center border-2 border-purple-200"
       initial={{ rotateY: 90, opacity: 0 }}
@@ -228,9 +278,9 @@ const handleSaveEditCategory = async (updatedCategory) => {
         )}
         {showTranslation && (
           <>
-            <button onClick={() => updateProgress('malo')} className="bg-red-100 text-red-700 px-6 py-2 rounded-full w-40">👎 Malo</button>
-            <button onClick={() => updateProgress('regular')} className="bg-yellow-100 text-yellow-700 px-6 py-2 rounded-full w-40">😐 Regular</button>
-            <button onClick={() => updateProgress('bueno')} className="bg-green-100 text-green-700 px-6 py-2 rounded-full w-40">👍 Bien</button>
+            <button onClick={() => updateProgress(1)} className="bg-red-100 text-red-700 px-6 py-2 rounded-full w-40">👎 Malo</button>
+            <button onClick={() => updateProgress(3)} className="bg-yellow-100 text-yellow-700 px-6 py-2 rounded-full w-40">😐 Regular</button>
+            <button onClick={() => updateProgress(5)} className="bg-green-100 text-green-700 px-6 py-2 rounded-full w-40">👍 Bien</button>
           </>
         )}
       </div>
@@ -398,8 +448,8 @@ const handleSaveEditCategory = async (updatedCategory) => {
   );
 
   // Cálculo de precisión
-  const totalRespondidas = score.bueno + score.regular + score.malo;
-  const precision = totalRespondidas > 0 ? Math.round((score.bueno / totalRespondidas) * 100) : 0;
+  const precisionColor =precision >= 80 ? "text-green-400" : precision >= 50 ? "text-yellow-400" :"text-red-400";
+  const palabrasAprendidas = flashcards.filter(card => card.progress > 150).length;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center justify-center">
@@ -420,15 +470,15 @@ const handleSaveEditCategory = async (updatedCategory) => {
 
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="bg-gray-800 p-4 rounded-xl">
-              <p className="text-2xl font-bold text-blue-400">{score.bueno}</p>
+              <p className="text-2xl font-bold text-blue-400">{palabrasAprendidas}</p>
               <p className="text-gray-400">Palabras aprendidas</p>
             </div>
             <div className="bg-gray-800 p-4 rounded-xl">
-              <p className="text-2xl font-bold text-yellow-400">{diasJugados}</p>
+              <p className="text-2xl font-bold text-yellow-400">{racha}</p>
               <p className="text-gray-400">Días consecutivos</p>
             </div>
             <div className="bg-gray-800 p-4 rounded-xl">
-              <p className="text-2xl font-bold text-purple-400">{precision}%</p>
+              <p className={`text-2xl font-bold ${precisionColor}`}>{precision}%</p>
               <p className="text-gray-400">Precisión</p>
             </div>
           </div>
@@ -475,7 +525,25 @@ const handleSaveEditCategory = async (updatedCategory) => {
               <FaTags size={32} />
               <span>Ver Categorias</span>
             </button>
-            
+<button
+  className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
+  onClick={() => {
+    const malas = flashcards
+      .filter(card => card.progress !== null && card.progress <= 2) // tarjetas con poco progreso
+      .sort(() => Math.random() - 0.5); // opcional: orden aleatorio
+
+    setFilteredFlashcards(malas);
+    setCurrentIndex(0);
+    setScore({ 1: 0, 3: 0, 5: 0 }); // si vas a usar puntos como 1 = malo, 3 = regular, 5 = bueno
+    setShowTranslation(false);
+    setShowSummary(false);
+        setPrecision(0);
+    setView('play');
+  }}
+>
+  <FaGamepad size={32} />
+  <span>Practicar palabras difíciles</span>
+</button>
           </div>
         </motion.div>
       )}
@@ -487,7 +555,8 @@ const handleSaveEditCategory = async (updatedCategory) => {
       {/* Juego de tarjetas */}
       {view === 'play' && filteredFlashcards.length > 0 && (
         showSummary ? <GameSummary /> : <Flashcard word={filteredFlashcards[currentIndex]} />
-      )}
+      )
+      }
 
       {/* Modal edición de card */}
       {isModalOpenCard && (
