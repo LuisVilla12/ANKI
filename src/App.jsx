@@ -258,9 +258,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
 
 
   // Componentes internos:
-
   const Flashcard = ({ word }) => (
-    
     <motion.div
       className="bg-white shadow-2xl rounded-3xl p-8 w-96 text-center border-2 border-purple-200"
       initial={{ rotateY: 90, opacity: 0 }}
@@ -529,7 +527,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
   className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-xl flex flex-col items-center justify-center space-y-2"
   onClick={() => {
     const malas = flashcards
-      .filter(card => card.progress !== null && card.progress <= 2) // tarjetas con poco progreso
+      .filter(card => card.progress !== null && card.progress <= 150) // tarjetas con poco progreso
       .sort(() => Math.random() - 0.5); // opcional: orden aleatorio
 
     setFilteredFlashcards(malas);
@@ -537,7 +535,7 @@ const handleSaveEditCategory = async (updatedCategory) => {
     setScore({ 1: 0, 3: 0, 5: 0 }); // si vas a usar puntos como 1 = malo, 3 = regular, 5 = bueno
     setShowTranslation(false);
     setShowSummary(false);
-        setPrecision(0);
+    setPrecision(0);
     setView('play');
   }}
 >
