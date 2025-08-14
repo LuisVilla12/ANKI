@@ -4,7 +4,7 @@ import { FaBookOpen, FaPlus, FaGamepad, FaEdit, FaTrash, FaCheckCircle,FaTags } 
 import EditModalCard from './EditModalCard'; // Modal de edición separado
 import EditModalCategory from './EditModalCategory'; // Modal de edición separado
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:8080';
 
 export default function FlashcardApp() {
   const [view, setView] = useState('home');
@@ -261,10 +261,10 @@ const handleSaveEditCategory = async (updatedCategory) => {
   const Flashcard = ({ word }) => (
     <motion.div
       className="bg-white shadow-2xl rounded-3xl p-8 w-96 text-center border-2 border-purple-200"
-      initial={{ rotateY: 90, opacity: 0 }}
+  initial={{ rotateY: 90, opacity: 0 }}
       animate={{ rotateY: 0, opacity: 1 }}
       exit={{ rotateY: -90, opacity: 0 }}
-      transition={{ duration: 0.6, type: 'spring' }}
+      transition={{ duration: 0.05, type: 'spring' }}
       style={{ transformStyle: 'preserve-3d' }}
     >
       <h2 className="text-3xl font-bold text-purple-700 mb-6">{word.english}</h2>

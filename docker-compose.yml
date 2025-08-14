@@ -15,7 +15,7 @@ services:
       context: .
       dockerfile: servicios/backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8000"
     depends_on:
       - database
     environment:
@@ -30,7 +30,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
       MARIADB_DATABASE: ${DB_NAME}
     ports:
-      - "3360:3306"
+      - "3361:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/anki.sql

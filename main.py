@@ -182,7 +182,7 @@ def add_word(word: WordIn):
     word_id = cursor.lastrowid
     cursor.close()
     conn.close()
-    return {**word.dict(), "id": word_id, "progress": "malo"}
+    return {**word.dict(), "id": word_id, "progress": 0}
 
 # ✅ Editar palabra
 @app.put("/words/{word_id}", response_model=WordOut)
